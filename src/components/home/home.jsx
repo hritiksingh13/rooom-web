@@ -31,7 +31,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className='flex flex-col justify-center items-center h-full gap-10 m-20'>
+    <div className='flex flex-col justify-center items-center h-full gap-10'>
       <span className='text-4xl'>Join or Create room</span>
       <div className='flex gap-5'>
         <div className='p-4 border-solid border-2 border-grey-600 rounded-md w-96'>

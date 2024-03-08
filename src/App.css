@@ -5,6 +5,13 @@
   padding: 0;
 }
 
+html,
+body,
+#root,
+.app {
+  height: 100%;
+}
+
 body {
   font-family: 'Poppins', Arial, sans-serif;
   line-height: 1.8;

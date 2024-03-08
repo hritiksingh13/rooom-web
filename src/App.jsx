@@ -11,12 +11,15 @@ function App() {
   const [roomDetails, setRoomDetails] = useState({
     roomCode: '',
     userName: '',
+    userId: '',
   });
   const joinRoom = (roomCode, userName) =>
-    setRoomDetails({ roomCode, userName });
+    setRoomDetails({ roomCode, userName, userId: '' });
+
+  const setUserId = (id) => setRoomDetails({ ...roomDetails, userId: id });
 
   return (
-    <roomContext.Provider value={{ roomDetails, joinRoom }}>
+    <roomContext.Provider value={{ roomDetails, joinRoom, setUserId }}>
       <Router>
         <div className='app'>
           <Routes>
