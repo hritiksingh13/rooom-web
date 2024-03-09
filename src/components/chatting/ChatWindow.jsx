@@ -51,11 +51,7 @@ const ChatWindow = () => {
       ? process.env.REACT_APP_DEV_API_URL
       : process.env.REACT_APP_PROD_API_URL;
   console.log(`The url is ${url}`);
-  const socket = io(
-    process.env.NODE_ENV === 'dev'
-      ? process.env.DEV_API_URL
-      : process.env.PROD_API_URL
-  );
+  const socket = io(url);
   socket.on('connect_error', (err) => {
     console.log(`connect_error due to ${err.message}`);
   });
