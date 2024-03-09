@@ -48,8 +48,8 @@ function PlaneIcon(props) {
 const ChatWindow = () => {
   const url =
     process.env.NODE_ENV === 'dev'
-      ? process.env.DEV_API_URL
-      : process.env.PROD_API_URL;
+      ? process.env.REACT_APP_DEV_API_URL
+      : process.env.REACT_APP_PROD_API_URL;
   console.log(`The url is ${url}`);
   const socket = io(
     process.env.NODE_ENV === 'dev'
