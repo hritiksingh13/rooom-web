@@ -51,6 +51,9 @@ const ChatWindow = () => {
       ? process.env.DEV_API_URL
       : process.env.PROD_API_URL
   );
+  socket.on('connect_error', (err) => {
+    console.log(`connect_error due to ${err.message}`);
+  });
   const roomProviderContext = useContext(roomContext);
   const navigate = useNavigate();
   const userId = useRef(crypto.randomUUID());
@@ -58,18 +61,22 @@ const ChatWindow = () => {
   const [chats, setChats] = useState([]);
   const AddComment = () => {
     if (comment !== '') {
-      socket.emit(
-        'message sent',
-        {
-          id: userId.current,
-          userName: roomProviderContext.roomDetails.userName,
-          room: roomProviderContext.roomDetails.roomCode,
-          message: comment,
-        },
-        (error) => {
-          if (error) console.log(error);
-        }
-      );
+      try {
+        socket.emit(
+          'message sent',
+          {
+            id: userId.current,
+            userName: roomProviderContext.roomDetails.userName,
+            room: roomProviderContext.roomDetails.roomCode,
+            message: comment,
+          },
+          (error) => {
+            if (error) console.log(error);
+          }
+        );
+      } catch (err) {
+        console.log(err);
+      }
       setComment('');
     }
   };
@@ -81,17 +88,21 @@ const ChatWindow = () => {
     ) {
       navigate('/');
     } else {
-      socket.emit(
-        'join',
-        {
-          id: userId.current,
-          userName: roomProviderContext.roomDetails.userName,
-          room: roomProviderContext.roomDetails.roomCode,
-        },
-        (error) => {
-          if (error) console.log(error);
-        }
-      );
+      try {
+        socket.emit(
+          'join',
+          {
+            id: userId.current,
+            userName: roomProviderContext.roomDetails.userName,
+            room: roomProviderContext.roomDetails.roomCode,
+          },
+          (error) => {
+            if (error) console.log(error);
+          }
+        );
+      } catch (err) {
+        console.log(err);
+      }
       socket.on('user joined', ({ joinedUserId, joinedUserName }) => {
         if (userId.current !== joinedUserId)
           setChats((prevChats) => [
