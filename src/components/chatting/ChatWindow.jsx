@@ -54,6 +54,7 @@ const ChatWindow = () => {
   const socket = io(url);
   socket.on('connect_error', (err) => {
     console.log(`connect_error due to ${err.message}`);
+    console.log(JSON.stringify(err));
   });
   const roomProviderContext = useContext(roomContext);
   const navigate = useNavigate();
