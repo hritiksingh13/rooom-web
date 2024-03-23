@@ -58,6 +58,7 @@ const ChatWindow = () => {
   const userId = useRef(crypto.randomUUID());
   const [comment, setComment] = useState('');
   const [chats, setChats] = useState([]);
+  const [users, setUsers] = useState([]);
   const AddComment = () => {
     if (comment !== '') {
       try {
@@ -95,15 +96,23 @@ const ChatWindow = () => {
             userName: roomProviderContext.roomDetails.userName,
             room: roomProviderContext.roomDetails.roomCode,
           },
-          (error) => {
-            if (error) console.log(error);
+          (users) => {
+            console.log(users);
+            if (users)
+              setUsers([
+                {
+                  id: userId.current,
+                  userName: 'You',
+                },
+                ...users,
+              ]);
           }
         );
       } catch (err) {
         console.log(err);
       }
       socket.on('user joined', ({ joinedUserId, joinedUserName }) => {
-        if (userId.current !== joinedUserId)
+        if (userId.current !== joinedUserId) {
           setChats((prevChats) => [
             ...prevChats,
             {
@@ -113,6 +122,11 @@ const ChatWindow = () => {
               action: 'join',
             },
           ]);
+          setUsers((currentUsers) => [
+            ...currentUsers,
+            { id: joinedUserId, userName: joinedUserName },
+          ]);
+        }
       });
       socket.on('message received', ({ id, userName, message }) => {
         const currentTime =
@@ -136,7 +150,7 @@ const ChatWindow = () => {
       socket.on(
         'user disconnected',
         ({ disconnectedUserId, disconnectedUserName }) => {
-          if (userId !== disconnectedUserId)
+          if (userId !== disconnectedUserId) {
             setChats((prevChats) => [
               ...prevChats,
               {
@@ -146,6 +160,10 @@ const ChatWindow = () => {
                 action: 'disconnect',
               },
             ]);
+            setUsers((currentUsers) =>
+              currentUsers.filter((user) => user.id !== disconnectedUserId)
+            );
+          }
         }
       );
     }
@@ -160,55 +178,75 @@ const ChatWindow = () => {
             {roomProviderContext.roomDetails.roomCode}
           </span>
         </div>
-        <div className='flex-1 min-h-0 p-4 overflow-auto'>
-          <div className='flex flex-col gap-2'>
-            {chats.map((chat, index) => {
-              if (chat.type === 'message') {
-                if (chat.id === userId.current) {
-                  return (
-                    <div key={index} className='flex justify-end gap-2'>
-                      <div className='flex flex-col'>
-                        <div className='bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800'>
-                          {chat.message}
-                        </div>
-                        <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
-                          <div>{chat.time}</div>
-                          <div className='underline'>Reply</div>
+        <div className='flex flex-1'>
+          <nav className='flex flex-col min-h-0 w-64 h-full border-r'>
+            <div className='flex font-semibold mt-2 mb-2 justify-center border-b'>
+              Users
+            </div>
+            <div className='flex-1 flex-col gap-1 overflow-auto'>
+              {users.map((user) => (
+                <span
+                  key={user.id}
+                  className='flex items-center w-full h-10 px-4 text-sm font-medium
+                  dark:text-gray-100
+                  peer-disabled:cursor-not-allowed
+                  peer-disabled:opacity-70'
+                >
+                  {user.userName}
+                </span>
+              ))}
+            </div>
+          </nav>
+          <div className='flex-1 min-h-0 p-4 overflow-auto'>
+            <div className='flex flex-col gap-2'>
+              {chats.map((chat, index) => {
+                if (chat.type === 'message') {
+                  if (chat.id === userId.current) {
+                    return (
+                      <div key={index} className='flex justify-end gap-2'>
+                        <div className='flex flex-col'>
+                          <div className='bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800'>
+                            {chat.message}
+                          </div>
+                          <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
+                            <div>{chat.time}</div>
+                            <div className='underline'>Reply</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                } else
-                  return (
-                    <div key={index} className='flex justify-start gap-2'>
-                      <div className='flex flex-col'>
-                        <div className='text-sm font-semibold'>
-                          {chat.userName}
-                        </div>
-                        <div className='bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800'>
-                          {chat.message}
-                        </div>
-                        <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
-                          <div>{chat.time}</div>
-                          <div className='underline'>Reply</div>
+                    );
+                  } else
+                    return (
+                      <div key={index} className='flex justify-start gap-2'>
+                        <div className='flex flex-col'>
+                          <div className='text-sm font-semibold'>
+                            {chat.userName}
+                          </div>
+                          <div className='bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800'>
+                            {chat.message}
+                          </div>
+                          <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
+                            <div>{chat.time}</div>
+                            <div className='underline'>Reply</div>
+                          </div>
                         </div>
                       </div>
+                    );
+                } else if (chat.type === 'action' && chat.action === 'join')
+                  return (
+                    <div className='flex w-full justify-center text-slate-400'>
+                      <span>{chat.userName} just joined the rooom !!!</span>
                     </div>
                   );
-              } else if (chat.type === 'action' && chat.action === 'join')
-                return (
-                  <div className='flex w-full justify-center text-slate-400'>
-                    <span>{chat.userName} just joined the rooom !!!</span>
-                  </div>
-                );
-              else if (chat.type === 'action' && chat.action === 'disconnect')
-                return (
-                  <div className='flex w-full justify-center text-slate-400'>
-                    <span>{chat.userName} just left the rooom !!!</span>
-                  </div>
-                );
-              else return null;
-            })}
+                else if (chat.type === 'action' && chat.action === 'disconnect')
+                  return (
+                    <div className='flex w-full justify-center text-slate-400'>
+                      <span>{chat.userName} just left the rooom !!!</span>
+                    </div>
+                  );
+                else return null;
+              })}
+            </div>
           </div>
         </div>
         <div className='flex items-center h-14 px-4 border-t'>
