@@ -46,7 +46,7 @@ function PlaneIcon(props) {
 }
 
 const ChatWindow = () => {
-  const url =process.env.REACT_APP_PROD_API_URL;
+  const url = process.env.REACT_APP_DEV_API_URL;
   console.log(`The url is ${url}`);
   const socket = io(url, { transports: ['websocket'] });
   socket.on('connect_error', (err) => {
