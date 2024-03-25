@@ -25,7 +25,7 @@ export default function ReplyCard(props) {
             {props.data.userName}
           </div>
           <div className="message-metadata ml-1 dark:text-white">
-            {props.data.chatTime}
+            {props.data.chatDate + " " + props.data.chatTime}
           </div>
         </div>
         <div className="chat-reply-content text-sm dark:text-white">
