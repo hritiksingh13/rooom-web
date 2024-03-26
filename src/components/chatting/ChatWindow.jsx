@@ -28,8 +28,6 @@ const ChatWindow = () => {
   const [users, setUsers] = useState([]);
   const [chatReply, setChatReply] = useState({});
   const messageInputRef = useRef(null);
-  const chatWindowRef = useRef(null);
-  const chatInnerWindow = useRef(null);
 
   const AddComment = () => {
     if (comment !== "") {
@@ -81,19 +79,7 @@ const ChatWindow = () => {
     setChatReply({});
   };
 
-  // useEffect(() => {
-  //   scrollToBottom();
-  // }, []);
-
-  // Function to scroll to the bottom
-  const scrollToBottom = () => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
-  };
-
   useEffect(() => {
-    scrollToBottom();
     if (
       !roomProviderContext.roomDetails.userName ||
       !roomProviderContext.roomDetails.roomCode
@@ -203,12 +189,9 @@ const ChatWindow = () => {
         </div>
         <div className="flex flex-1">
           <UserNav users={users} />
-          <div
-            className="flex-1 min-h-0 p-4 overflow-auto relative chat-window-container"
-            ref={chatWindowRef}
-          >
-            <div className="flex flex-col gap-2" ref={chatInnerWindow}>
-              {chats.map((chat, index) => {
+          <div className="flex-1 min-h-0 p-4 overflow-auto relative chat-window-container">
+            <div className="flex flex-col gap-2">
+              {chats.map((chat) => {
                 if (chat.type === "message") {
                   if (chat.id === userId.current) {
                     return (
