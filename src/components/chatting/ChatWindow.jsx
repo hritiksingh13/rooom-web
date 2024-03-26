@@ -4,12 +4,11 @@ import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt
 import SendIcon from "@mui/icons-material/Send";
 import { getCurrentDate, getCurrentTime } from "../../Utils/GetDateAndTime";
 import { io } from "socket.io-client";
-import { v4 as uuidv4 } from "uuid";
 import { roomContext } from "../../App";
 import ReplyCard from "../ChatReplyCard/ReplyCard";
 import UserNav from "../UserSideNav/UserNav";
-import "./styles.css";
 import ChatCard from "../ChatCard/ChatCard";
+import "./styles.css";
 
 const ChatWindow = () => {
   const url = process.env.REACT_APP_PROD_API_URL;
@@ -44,7 +43,7 @@ const ChatWindow = () => {
             message: comment,
             isRepliedChat: Object.keys(chatReply).length > 0 ? true : false,
             repliedMessage: chatReply,
-            messageId: uuidv4(),
+            messageId: crypto.randomUUID(),
           },
           (error) => {
             if (error) console.log(error);
@@ -231,7 +230,7 @@ const ChatWindow = () => {
                 } else if (chat.type === "action" && chat.action === "join")
                   return (
                     <div
-                      key={uuidv4()}
+                      key={crypto.randomUUID()}
                       className="flex w-full justify-center text-slate-400"
                     >
                       <span>{chat.userName} just joined the rooom !!!</span>
@@ -240,7 +239,7 @@ const ChatWindow = () => {
                 else if (chat.type === "action" && chat.action === "disconnect")
                   return (
                     <div
-                      key={uuidv4()}
+                      key={crypto.randomUUID()}
                       className="flex w-full justify-center text-slate-400"
                     >
                       <span>{chat.userName} just left the rooom !!!</span>
