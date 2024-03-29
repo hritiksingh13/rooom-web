@@ -22,39 +22,34 @@ const ChatWindow = () => {
 
   const roomProviderContext = useContext(roomContext);
   const navigate = useNavigate();
-  const userId = useRef(crypto.randomUUID());
-  const [comment, setComment] = useState("");
-  const [chats, setChats] = useState([]);
+  const [message, setMessage] = useState({text: "", replyDetails: null });
+  const [chatData, setChatData] = useState([]);
   const [users, setUsers] = useState([]);
-  const [chatReply, setChatReply] = useState({});
   const messageInputRef = useRef(null);
   const chatWindowRef = useRef(null);
   const chatInnerWindow = useRef(null);
 
+  const getParentChat = (id) => chatData.find((chat) => chat.id === id);
+
   const AddComment = () => {
-    if (comment !== "") {
+    if (message.text !== "") {
       try {
         socket.emit(
           "message sent",
           {
-            id: userId.current,
-            userName: roomProviderContext.roomDetails.userName,
-            room: roomProviderContext.roomDetails.roomCode,
-            message: comment,
-            isRepliedChat: Object.keys(chatReply).length > 0 ? true : false,
-            repliedMessage: chatReply,
-            messageId: crypto.randomUUID(),
+            ...roomProviderContext.roomDetails,
+            id: crypto.randomUUID(),
+            message: message.text,
+            parentId: message.replyDetails?.id ?? null,
           },
           (error) => {
             if (error) console.log(error);
           }
         );
-
-        setChatReply({});
       } catch (err) {
         console.log(err);
       }
-      setComment("");
+      setMessage({ text: "", replyDetails: null });
     }
   };
 
@@ -66,129 +61,97 @@ const ChatWindow = () => {
     }
   };
 
-  const handleChatReply = (chatTime, chatContent, userName, chatDate) => {
+  const handleChatReply = (date, time, id, alias, message) => {
     messageInputRef.current.focus();
-    const replyObject = {
-      userName: userName,
-      chatTime: chatTime,
-      message: chatContent,
-      chatDate: chatDate,
-    };
-    setChatReply(replyObject);
+    setMessage({
+      ...message,
+      replyDetails: {
+        id,
+        message,
+        alias,
+        date,
+        time,
+      },
+    });
   };
 
   const closeReplyCard = () => {
-    setChatReply({});
-  };
-
-  // useEffect(() => {
-  //   scrollToBottom();
-  // }, []);
-
-  // Function to scroll to the bottom
-  const scrollToBottom = () => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
+    setMessage({ ...message, replyDetails: null });
   };
 
   useEffect(() => {
-    scrollToBottom();
     if (
-      !roomProviderContext.roomDetails.userName ||
+      !roomProviderContext.roomDetails.userId ||
+      !roomProviderContext.roomDetails.alias ||
       !roomProviderContext.roomDetails.roomCode
     ) {
       navigate("/");
     } else {
       try {
-        socket.emit(
-          "join",
-          {
-            id: userId.current,
-            userName: roomProviderContext.roomDetails.userName,
-            room: roomProviderContext.roomDetails.roomCode,
-          },
-          (users) => {
-            console.log(users);
-            if (users)
-              setUsers([
-                {
-                  id: userId.current,
-                  userName: "You",
-                },
-                ...users,
-              ]);
-          }
-        );
+        socket.emit("join", roomProviderContext.roomDetails, (users) => {
+          if (users)
+            setUsers([
+              {
+                userId: roomProviderContext.roomDetails.userId,
+                alias: "You",
+              },
+              ...users,
+            ]);
+        });
       } catch (err) {
         console.log(err);
       }
-      socket.on("user joined", ({ joinedUserId, joinedUserName }) => {
-        if (userId.current !== joinedUserId) {
-          setChats((prevChats) => [
+      socket.on("user joined", ({ userId, alias }) => {
+        if (roomProviderContext.roomDetails.userId !== userId) {
+          setChatData((prevChats) => [
             ...prevChats,
             {
-              id: joinedUserId,
-              userName: joinedUserName,
-              type: "action",
+              id: crypto.randomUUID(),
+              userId,
+              alias: alias,
               action: "join",
             },
           ]);
-          setUsers((currentUsers) => [
-            ...currentUsers,
-            { id: joinedUserId, userName: joinedUserName },
-          ]);
+          setUsers((currentUsers) => [...currentUsers, { userId, alias }]);
         }
       });
       socket.on(
         "message received",
-        ({
-          id,
-          userName,
-          message,
-          isRepliedChat,
-          repliedMessage,
-          messageId,
-        }) => {
+        ({ userId, alias, id, message, parentId }) => {
           const currentTime = getCurrentTime();
           const currentDate = getCurrentDate();
-
-          setChats((prevChats) => [
+          setChatData((prevChats) => [
             ...prevChats,
             {
               id,
-              userName,
-              type: "message",
-              action: null,
+              alias,
               message,
+              action: "message",
               time: currentTime,
               date: currentDate,
-              isRepliedChat,
-              repliedMessage,
-              messageId,
+              userId,
+              parentId,
+              replies: [],
             },
           ]);
         }
       );
-      socket.on(
-        "user disconnected",
-        ({ disconnectedUserId, disconnectedUserName }) => {
-          if (userId !== disconnectedUserId) {
-            setChats((prevChats) => [
-              ...prevChats,
-              {
-                id: disconnectedUserId,
-                userName: disconnectedUserName,
-                type: "action",
-                action: "disconnect",
-              },
-            ]);
-            setUsers((currentUsers) =>
-              currentUsers.filter((user) => user.id !== disconnectedUserId)
-            );
-          }
+      socket.on("user disconnected", ({ userId, alias }) => {
+        if (roomProviderContext.roomDetails.userId !== userId) {
+          setChatData((prevChats) => [
+            ...prevChats,
+            {
+              id: crypto.randomUUID(),
+              userId,
+              alias: alias,
+              action: "leave",
+            },
+          ]);
+          setUsers((currentUsers) =>
+            currentUsers.filter((user) => user.userId !== userId)
+          );
         }
-      );
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -208,56 +171,43 @@ const ChatWindow = () => {
             ref={chatWindowRef}
           >
             <div className="flex flex-col gap-2" ref={chatInnerWindow}>
-              {chats.map((chat, index) => {
-                if (chat.type === "message") {
-                  if (chat.id === userId.current) {
-                    return (
-                      <ChatCard
-                        data={chat}
-                        chatType={"message"}
-                        handleChatReply={handleChatReply}
-                      />
-                    );
-                  } else {
-                    return (
-                      <ChatCard
-                        data={chat}
-                        chatType={"reply"}
-                        handleChatReply={handleChatReply}
-                      />
-                    );
-                  }
-                } else if (chat.type === "action" && chat.action === "join")
+              {chatData.map((data) => {
+                if (data.action === "message") {
+                  return (
+                    <ChatCard
+                      key={data.id}
+                      data={data}
+                      getParentChat={getParentChat}
+                      handleChatReply={handleChatReply}
+                    />
+                  );
+                } else
+                if (data.action === "join")
                   return (
                     <div
                       key={crypto.randomUUID()}
                       className="flex w-full justify-center text-slate-400"
                     >
-                      <span>{chat.userName} just joined the rooom !!!</span>
+                      <span>{data.alias} just joined the rooom !!!</span>
                     </div>
                   );
-                else if (chat.type === "action" && chat.action === "disconnect")
+                else if (data.action === "leave")
                   return (
                     <div
                       key={crypto.randomUUID()}
                       className="flex w-full justify-center text-slate-400"
                     >
-                      <span>{chat.userName} just left the rooom !!!</span>
+                      <span>{data.alias} just left the rooom !!!</span>
                     </div>
                   );
                 else return null;
               })}
             </div>
             <div className="reply-chat-pannel top-[100vh]">
-              {Object.keys(chatReply).length > 0 ? (
-                <ReplyCard
-                  data={chatReply}
-                  closeCard={closeReplyCard}
-                  isReplyCard={true}
-                />
-              ) : (
-                ""
-              )}
+              <ReplyCard
+                data={message.replyDetails}
+                closeCard={closeReplyCard}
+              />
             </div>
           </div>
         </div>
@@ -270,8 +220,8 @@ const ChatWindow = () => {
             <input
               className="w-[400px] max-w-none border border-slate-400 rounded-md p-1"
               placeholder="Message in Blank..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              value={message.text}
+              onChange={(e) => setMessage({ ...message, text: e.target.value })}
               onKeyDown={handleMessage}
               ref={messageInputRef}
             />

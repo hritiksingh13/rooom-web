@@ -1,30 +1,28 @@
-import React, { createContext, useState } from 'react';
-import './App.css';
-import Home from './components/home/home';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
-import ChatWindow from './components/chatting/ChatWindow';
+import React, { createContext, useState } from "react";
+import "./App.css";
+import Home from "./components/home/home";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import ChatWindow from "./components/chatting/ChatWindow";
 
 export const roomContext = createContext();
 function App() {
   const [roomDetails, setRoomDetails] = useState({
-    roomCode: '',
-    userName: '',
-    userId: '',
+    roomCode: "",
+    alias: "",
+    userId: "",
   });
-  const joinRoom = (roomCode, userName) =>
-    setRoomDetails({ roomCode, userName, userId: '' });
-
-  const setUserId = (id) => setRoomDetails({ ...roomDetails, userId: id });
+  const joinRoom = (roomCode, userId, alias) =>
+    setRoomDetails({ roomCode, userId, alias });
 
   return (
-    <roomContext.Provider value={{ roomDetails, joinRoom, setUserId }}>
+    <roomContext.Provider value={{ roomDetails, joinRoom }}>
       <Router>
-        <div className='app'>
+        <div className="app">
           <Routes>
-            <Route exact path='/' element={<Home />} />
-            <Route exact path='/room/:code' element={<ChatWindow />} />
+            <Route exact path="/" element={<Home />} />
+            <Route exact path="/room/:code" element={<ChatWindow />} />
           </Routes>
         </div>
       </Router>

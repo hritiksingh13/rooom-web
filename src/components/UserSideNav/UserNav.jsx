@@ -9,12 +9,12 @@ export default function UserNav(props) {
       <div className="flex-1 flex-col gap-1 overflow-auto">
         {props.users.map((user) => (
           <span
-            key={user.id}
+            key={user.userId}
             className="flex items-center w-full h-10 px-4 text-sm font-medium text-gray-900 dark:text-gray-900
                   peer-disabled:cursor-not-allowed
                   peer-disabled:opacity-70"
           >
-            {user.userName}
+            {user.alias}
           </span>
         ))}
       </div>

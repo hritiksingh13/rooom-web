@@ -1,18 +1,30 @@
-import React from "react";
+import React, { useContext, useMemo } from "react";
 import ReplyCard from "../ChatReplyCard/ReplyCard";
+import { roomContext } from "../../App";
 
-export default function ChatCard({ data, handleChatReply, chatType }) {
+export default function ChatCard({ data, getParentChat, handleChatReply }) {
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const parentChat = useMemo(
+    () => getParentChat(data.parentId),
+    [data.parentId]
+  );
+  const roomProviderContext = useContext(roomContext);
   return (
     <div
-      key={data.messageId}
       className={`flex ${
-        chatType === "message" ? "justify-end" : "justify-start"
+        roomProviderContext.roomDetails.userId === data.userId
+          ? "justify-end"
+          : "justify-start"
       } gap-2`}
     >
-      <div className="message-container flex flex-col">
-        {data.isRepliedChat ? (
+      <div className="flex flex-col">
+        {roomProviderContext.roomDetails.userId !== data.userId && (
+          <div className="text-sm font-semibold">{data.alias}</div>
+        )}
+
+        {parentChat ? (
           <div className="bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800 dark:text-white ">
-            <ReplyCard data={data.repliedMessage} isReplyCard={false} />
+            <ReplyCard data={parentChat} />
             {data.message}
           </div>
         ) : (
@@ -25,7 +37,13 @@ export default function ChatCard({ data, handleChatReply, chatType }) {
           <div
             className="chat-reply-container underline cursor-pointer"
             onClick={() =>
-              handleChatReply(data.time, data.message, data.userName, data.date)
+              handleChatReply(
+                data.date,
+                data.time,
+                data.id,
+                data.alias,
+                data.message
+              )
             }
           >
             Reply
