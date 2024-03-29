@@ -20,3 +20,9 @@
 .commentButton:active {
   font-size: 13px;
 }
+
+.reply-chat-pannel {
+  width: -webkit-fill-available;
+  position: sticky;
+  bottom: 0;
+}

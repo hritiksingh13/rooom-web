@@ -1,74 +1,46 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
-import './styles.css';
-import { useNavigate } from 'react-router-dom';
-import { roomContext } from '../../App';
-import { io } from 'socket.io-client';
-
-function SmileIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns='http://www.w3.org/2000/svg'
-      width='24'
-      height='24'
-      viewBox='0 0 24 24'
-      fill='none'
-      stroke='currentColor'
-      strokeWidth='2'
-      strokeLinecap='round'
-      strokeLinejoin='round'
-    >
-      <circle cx='12' cy='12' r='10' />
-      <path d='M8 14s1.5 2 4 2 4-2 4-2' />
-      <line x1='9' x2='9.01' y1='9' y2='9' />
-      <line x1='15' x2='15.01' y1='9' y2='9' />
-    </svg>
-  );
-}
-
-function PlaneIcon(props) {
-  return (
-    <svg
-      {...props}
-      xmlns='http://www.w3.org/2000/svg'
-      width='24'
-      height='24'
-      viewBox='0 0 24 24'
-      fill='none'
-      stroke='white'
-      strokeWidth='2'
-      strokeLinecap='round'
-      strokeLinejoin='round'
-    >
-      <path d='M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z' />
-    </svg>
-  );
-}
+import React, { useContext, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import SentimentSatisfiedAltIcon from "@mui/icons-material/SentimentSatisfiedAlt";
+import SendIcon from "@mui/icons-material/Send";
+import { getCurrentDate, getCurrentTime } from "../../Utils/GetDateAndTime";
+import { io } from "socket.io-client";
+import { roomContext } from "../../App";
+import ReplyCard from "../ChatReplyCard/ReplyCard";
+import UserNav from "../UserSideNav/UserNav";
+import ChatCard from "../ChatCard/ChatCard";
+import "./styles.css";
 
 const ChatWindow = () => {
-  const url =process.env.REACT_APP_PROD_API_URL;
+  const url = process.env.REACT_APP_PROD_API_URL;
   console.log(`The url is ${url}`);
-  const socket = io(url, { transports: ['websocket'] });
-  socket.on('connect_error', (err) => {
+  const socket = io(url, { transports: ["websocket"] });
+
+  socket.on("connect_error", (err) => {
     console.log(`connect_error due to ${err.message}`);
     console.log(JSON.stringify(err));
   });
+
   const roomProviderContext = useContext(roomContext);
   const navigate = useNavigate();
-  const userId = useRef(crypto.randomUUID());
-  const [comment, setComment] = useState('');
-  const [chats, setChats] = useState([]);
+  const [message, setMessage] = useState({text: "", replyDetails: null });
+  const [chatData, setChatData] = useState([]);
   const [users, setUsers] = useState([]);
+  const messageInputRef = useRef(null);
+  const chatWindowRef = useRef(null);
+  const chatInnerWindow = useRef(null);
+
+  const getParentChat = (id) => chatData.find((chat) => chat.id === id);
+
   const AddComment = () => {
-    if (comment !== '') {
+    if (message.text !== "") {
       try {
         socket.emit(
-          'message sent',
+          "message sent",
           {
-            id: userId.current,
-            userName: roomProviderContext.roomDetails.userName,
-            room: roomProviderContext.roomDetails.roomCode,
-            message: comment,
+            ...roomProviderContext.roomDetails,
+            id: crypto.randomUUID(),
+            message: message.text,
+            parentId: message.replyDetails?.id ?? null,
           },
           (error) => {
             if (error) console.log(error);
@@ -77,197 +49,185 @@ const ChatWindow = () => {
       } catch (err) {
         console.log(err);
       }
-      setComment('');
+      setMessage({ text: "", replyDetails: null });
     }
+  };
+
+  const handleMessage = (event) => {
+    if (event.key === "Enter") {
+      AddComment();
+    } else {
+      return;
+    }
+  };
+
+  const handleChatReply = (date, time, id, alias, message) => {
+    messageInputRef.current.focus();
+    setMessage({
+      ...message,
+      replyDetails: {
+        id,
+        message,
+        alias,
+        date,
+        time,
+      },
+    });
+  };
+
+  const closeReplyCard = () => {
+    setMessage({ ...message, replyDetails: null });
   };
 
   useEffect(() => {
     if (
-      !roomProviderContext.roomDetails.userName ||
+      !roomProviderContext.roomDetails.userId ||
+      !roomProviderContext.roomDetails.alias ||
       !roomProviderContext.roomDetails.roomCode
     ) {
-      navigate('/');
+      navigate("/");
     } else {
       try {
-        socket.emit(
-          'join',
-          {
-            id: userId.current,
-            userName: roomProviderContext.roomDetails.userName,
-            room: roomProviderContext.roomDetails.roomCode,
-          },
-          (users) => {
-            console.log(users);
-            if (users)
-              setUsers([
-                {
-                  id: userId.current,
-                  userName: 'You',
-                },
-                ...users,
-              ]);
-          }
-        );
+        socket.emit("join", roomProviderContext.roomDetails, (users) => {
+          if (users)
+            setUsers([
+              {
+                userId: roomProviderContext.roomDetails.userId,
+                alias: "You",
+              },
+              ...users,
+            ]);
+        });
       } catch (err) {
         console.log(err);
       }
-      socket.on('user joined', ({ joinedUserId, joinedUserName }) => {
-        if (userId.current !== joinedUserId) {
-          setChats((prevChats) => [
+      socket.on("user joined", ({ userId, alias }) => {
+        if (roomProviderContext.roomDetails.userId !== userId) {
+          setChatData((prevChats) => [
             ...prevChats,
             {
-              id: joinedUserId,
-              userName: joinedUserName,
-              type: 'action',
-              action: 'join',
+              id: crypto.randomUUID(),
+              userId,
+              alias: alias,
+              action: "join",
             },
           ]);
-          setUsers((currentUsers) => [
-            ...currentUsers,
-            { id: joinedUserId, userName: joinedUserName },
-          ]);
+          setUsers((currentUsers) => [...currentUsers, { userId, alias }]);
         }
-      });
-      socket.on('message received', ({ id, userName, message }) => {
-        const currentTime =
-          (new Date().getHours() ? new Date().getHours() % 12 : 12) +
-          ':' +
-          new Date().getMinutes() +
-          ' ' +
-          (new Date().getHours() > 12 ? 'pm' : 'am');
-        setChats((prevChats) => [
-          ...prevChats,
-          {
-            id,
-            userName,
-            type: 'message',
-            action: null,
-            message,
-            time: currentTime,
-          },
-        ]);
       });
       socket.on(
-        'user disconnected',
-        ({ disconnectedUserId, disconnectedUserName }) => {
-          if (userId !== disconnectedUserId) {
-            setChats((prevChats) => [
-              ...prevChats,
-              {
-                id: disconnectedUserId,
-                userName: disconnectedUserName,
-                type: 'action',
-                action: 'disconnect',
-              },
-            ]);
-            setUsers((currentUsers) =>
-              currentUsers.filter((user) => user.id !== disconnectedUserId)
-            );
-          }
+        "message received",
+        ({ userId, alias, id, message, parentId }) => {
+          const currentTime = getCurrentTime();
+          const currentDate = getCurrentDate();
+          setChatData((prevChats) => [
+            ...prevChats,
+            {
+              id,
+              alias,
+              message,
+              action: "message",
+              time: currentTime,
+              date: currentDate,
+              userId,
+              parentId,
+              replies: [],
+            },
+          ]);
         }
       );
+      socket.on("user disconnected", ({ userId, alias }) => {
+        if (roomProviderContext.roomDetails.userId !== userId) {
+          setChatData((prevChats) => [
+            ...prevChats,
+            {
+              id: crypto.randomUUID(),
+              userId,
+              alias: alias,
+              action: "leave",
+            },
+          ]);
+          setUsers((currentUsers) =>
+            currentUsers.filter((user) => user.userId !== userId)
+          );
+        }
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <>
-      <div className='flex flex-col h-full'>
-        <div className='flex items-center px-6 border-b h-14'>
-          <span className='text-lg font-semibold'>
+      <div className="flex flex-col h-full">
+        <div className="flex items-center px-6 border-b h-14">
+          <span className="text-lg font-semibold">
             {roomProviderContext.roomDetails.roomCode}
           </span>
         </div>
-        <div className='flex flex-1'>
-          <nav className='flex flex-col min-h-0 w-64 h-full border-r'>
-            <div className='flex font-semibold mt-2 mb-2 justify-center border-b'>
-              Users
-            </div>
-            <div className='flex-1 flex-col gap-1 overflow-auto'>
-              {users.map((user) => (
-                <span
-                  key={user.id}
-                  className='flex items-center w-full h-10 px-4 text-sm font-medium
-                  dark:text-gray-100
-                  peer-disabled:cursor-not-allowed
-                  peer-disabled:opacity-70'
-                >
-                  {user.userName}
-                </span>
-              ))}
-            </div>
-          </nav>
-          <div className='flex-1 min-h-0 p-4 overflow-auto'>
-            <div className='flex flex-col gap-2'>
-              {chats.map((chat, index) => {
-                if (chat.type === 'message') {
-                  if (chat.id === userId.current) {
-                    return (
-                      <div key={index} className='flex justify-end gap-2'>
-                        <div className='flex flex-col'>
-                          <div className='bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800'>
-                            {chat.message}
-                          </div>
-                          <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
-                            <div>{chat.time}</div>
-                            <div className='underline'>Reply</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  } else
-                    return (
-                      <div key={index} className='flex justify-start gap-2'>
-                        <div className='flex flex-col'>
-                          <div className='text-sm font-semibold'>
-                            {chat.userName}
-                          </div>
-                          <div className='bg-gray-100 rounded-lg p-4 text-sm break-words dark:bg-gray-800'>
-                            {chat.message}
-                          </div>
-                          <div className='flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400'>
-                            <div>{chat.time}</div>
-                            <div className='underline'>Reply</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                } else if (chat.type === 'action' && chat.action === 'join')
+        <div className="flex flex-1">
+          <UserNav users={users} />
+          <div
+            className="flex-1 min-h-0 p-4 overflow-auto relative chat-window-container"
+            ref={chatWindowRef}
+          >
+            <div className="flex flex-col gap-2" ref={chatInnerWindow}>
+              {chatData.map((data) => {
+                if (data.action === "message") {
                   return (
-                    <div className='flex w-full justify-center text-slate-400'>
-                      <span>{chat.userName} just joined the rooom !!!</span>
+                    <ChatCard
+                      key={data.id}
+                      data={data}
+                      getParentChat={getParentChat}
+                      handleChatReply={handleChatReply}
+                    />
+                  );
+                } else
+                if (data.action === "join")
+                  return (
+                    <div
+                      key={crypto.randomUUID()}
+                      className="flex w-full justify-center text-slate-400"
+                    >
+                      <span>{data.alias} just joined the rooom !!!</span>
                     </div>
                   );
-                else if (chat.type === 'action' && chat.action === 'disconnect')
+                else if (data.action === "leave")
                   return (
-                    <div className='flex w-full justify-center text-slate-400'>
-                      <span>{chat.userName} just left the rooom !!!</span>
+                    <div
+                      key={crypto.randomUUID()}
+                      className="flex w-full justify-center text-slate-400"
+                    >
+                      <span>{data.alias} just left the rooom !!!</span>
                     </div>
                   );
                 else return null;
               })}
             </div>
+            <div className="reply-chat-pannel top-[100vh]">
+              <ReplyCard
+                data={message.replyDetails}
+                closeCard={closeReplyCard}
+              />
+            </div>
           </div>
         </div>
-        <div className='flex items-center h-14 px-4 border-t'>
-          <button className='rounded-full' size='icon' variant='ghost'>
-            <SmileIcon className='h-6 w-6' />
-            <span className='sr-only'>Toggle emoji picker</span>
-          </button>
-          <div className='ml-auto flex items-center space-x-2'>
+        <div className="flex items-center h-14 px-4 border-t justify-end w-full">
+          <div className="flex items-center space-x-2">
+            <button className="rounded-full" size="icon" variant="ghost">
+              <SentimentSatisfiedAltIcon sx={{ width: "24" }} />
+              <span className="sr-only">Toggle emoji picker</span>
+            </button>
             <input
-              className='w-[400px] max-w-none border border-slate-400 rounded-md p-1'
-              placeholder='Message in Blank...'
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              className="w-[400px] max-w-none border border-slate-400 rounded-md p-1"
+              placeholder="Message in Blank..."
+              value={message.text}
+              onChange={(e) => setMessage({ ...message, text: e.target.value })}
+              onKeyDown={handleMessage}
+              ref={messageInputRef}
             />
-            <button
-              className='rounded-full bg-black'
-              size='icon'
-              onClick={AddComment}
-            >
-              <PlaneIcon className='h-6 w-6 m-1' />
-              <span className='sr-only'>Send message</span>
+            <button className="rounded-full" size="icon" onClick={AddComment}>
+              <SendIcon sx={{ width: "24" }} />
+              <span className="sr-only">Send message</span>
             </button>
           </div>
         </div>
